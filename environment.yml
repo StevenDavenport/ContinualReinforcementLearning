@@ -1,0 +1,8 @@
+name: crl_bench
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - pip=26.0.1
+  - pip:
+      - -e ".[dev,yaml]"

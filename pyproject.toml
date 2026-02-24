@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling>=1.25.0,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "crlbench"
+version = "0.1.0"
+description = "Continual RL benchmark suite for toy and robotics tracks."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "CRL Benchmark Contributors" }]
+dependencies = []
+
+[project.optional-dependencies]
+yaml = ["PyYAML>=6.0,<7"]
+dev = [
+  "mypy>=1.11,<2",
+  "pre-commit>=4.0,<5",
+  "pytest>=8.3,<9",
+  "pytest-cov>=6.0,<7",
+  "ruff>=0.9,<0.10",
+  "types-PyYAML>=6.0.12.20240917,<7",
+]
+
+[project.scripts]
+crlbench = "crlbench.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/crlbench"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "PL"]
+ignore = ["PLR2004"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unreachable = true
+warn_unused_ignores = true
+disallow_any_generics = true
+show_error_codes = true
+pretty = true
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+  "heavy_env: optional heavy-environment integration smoke tests (nightly/manual CI)",
+]

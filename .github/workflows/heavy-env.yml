@@ -1,0 +1,33 @@
+name: heavy-env
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"
+
+jobs:
+  heavy-env-smoke:
+    name: heavy-${{ matrix.profile }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [metaworld, maniskill, robosuite, rlbench]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package and dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,yaml]"
+
+      - name: Heavy environment smoke
+        env:
+          CRLBENCH_HEAVY_PROFILE: ${{ matrix.profile }}
+        run: python -m pytest -m heavy_env -k "${CRLBENCH_HEAVY_PROFILE}" -rs

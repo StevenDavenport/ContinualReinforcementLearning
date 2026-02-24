@@ -1,0 +1,106 @@
+from __future__ import annotations
+
+from crlbench.core.plugins import create_environment, create_experiment
+from crlbench.experiments import (
+    EXPERIMENT_ID,
+    build_experiment1_eval_plan,
+    build_experiment1_protocol,
+    build_experiment1_tasks,
+    create_experiment1_stub_environment,
+    get_experiment1_budget,
+    get_experiment1_runtime_bound,
+    register_experiment1_plugins,
+)
+
+
+def test_experiment1_task_templates_cover_all_roots() -> None:
+    roots = [
+        ("toy", "dm_control", "vision_sequential_default"),
+        ("toy", "procgen", "vision_sequential_alternative"),
+        ("robotics", "metaworld", "manipulation_sequential_default"),
+        ("robotics", "maniskill", "manipulation_sequential_alternative"),
+    ]
+    for track, env_family, env_option in roots:
+        tasks = build_experiment1_tasks(track=track, env_family=env_family, env_option=env_option)
+        assert len(tasks) == 4
+        assert tasks[0].metadata["track"] == track
+        assert tasks[-1].env_family == env_family
+        assert tasks[-1].env_option == env_option
+
+
+def test_experiment1_eval_plan_grows_seen_set() -> None:
+    tasks = build_experiment1_tasks(
+        track="toy",
+        env_family="dm_control",
+        env_option="vision_sequential_default",
+    )
+    eval_plan = build_experiment1_eval_plan(tasks)
+    assert eval_plan[0].eval_task_ids == ("walker_walk",)
+    assert eval_plan[-1].eval_task_ids == (
+        "walker_walk",
+        "cheetah_run",
+        "quadruped_walk",
+        "humanoid_walk",
+    )
+
+
+def test_experiment1_protocol_budget_and_runtime() -> None:
+    protocol = build_experiment1_protocol(
+        track="robotics",
+        env_family="metaworld",
+        env_option="manipulation_sequential_default",
+        budget_tier="smoke",
+    )
+    assert protocol.experiment_id == EXPERIMENT_ID
+    assert protocol.budget == get_experiment1_budget("smoke")
+    assert protocol.runtime_bound == get_experiment1_runtime_bound(
+        tier="smoke",
+        env_family="metaworld",
+        env_option="manipulation_sequential_default",
+    )
+
+
+def test_experiment1_plugin_registration_and_stub_env() -> None:
+    register_experiment1_plugins(replace=True)
+    protocol = create_experiment(
+        EXPERIMENT_ID,
+        track="toy",
+        env_family="procgen",
+        env_option="vision_sequential_alternative",
+        budget_tier="dev",
+    )
+    assert protocol.track == "toy"
+    env = create_environment(
+        "procgen",
+        env_option="vision_sequential_alternative",
+        task_id="coinrun",
+        observation_mode="image",
+    )
+    observation = env.reset(seed=7)
+    assert "pixels" in observation
+    step = env.step(0)
+    assert step.reward <= 1.0
+    assert env.metadata["adapter"] == "stub"
+
+
+def test_experiment1_stub_adapters_cover_toy_and_robotics_options() -> None:
+    roots = [
+        ("dm_control", "vision_sequential_default", "walker_walk"),
+        ("procgen", "vision_sequential_alternative", "coinrun"),
+        ("metaworld", "manipulation_sequential_default", "reach"),
+        ("maniskill", "manipulation_sequential_alternative", "pick_cube"),
+    ]
+    for env_family, env_option, task_id in roots:
+        env = create_experiment1_stub_environment(
+            env_family=env_family,
+            env_option=env_option,
+            task_id=task_id,
+            observation_mode=(
+                "image_proprio" if env_family in {"metaworld", "maniskill"} else "image"
+            ),
+        )
+        observation = env.reset(seed=3)
+        assert observation["task"] == task_id
+        step = env.step(0)
+        assert step.info["env_family"] == env_family
+        assert step.info["env_option"] == env_option

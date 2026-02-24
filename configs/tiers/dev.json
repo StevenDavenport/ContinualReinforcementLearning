@@ -1,0 +1,10 @@
+{
+  "budget": {
+    "train_steps": 250000,
+    "eval_interval_steps": 25000,
+    "eval_episodes": 20
+  },
+  "tags": [
+    "dev"
+  ]
+}

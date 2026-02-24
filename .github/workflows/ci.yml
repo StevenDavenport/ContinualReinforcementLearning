@@ -1,0 +1,49 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package and dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,yaml]"
+
+      - name: Pre-commit
+        run: python -m pre_commit run --all-files
+
+      - name: Lint
+        run: python -m ruff check .
+
+      - name: Format check
+        run: python -m ruff format --check .
+
+      - name: Type check
+        run: python -m mypy src tests
+
+      - name: Test
+        run: |
+          python -m pytest \
+            --cov=src/crlbench \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=85
+
+      - name: Smoke
+        run: |
+          python -m crlbench repro-smoke --config configs/base.json --max-tasks 3
+          python -m crlbench smoke-run --config configs/base.json --max-tasks 3 --out-dir .ci_artifacts
+          python -m crlbench validate-artifacts --artifacts-dir .ci_artifacts

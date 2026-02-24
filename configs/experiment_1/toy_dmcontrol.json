@@ -1,0 +1,23 @@
+{
+  "run_name": "exp1_toy_dmcontrol",
+  "experiment": "experiment_1_forgetting",
+  "track": "toy",
+  "env_family": "dm_control",
+  "env_option": "vision_sequential_default",
+  "seed": 0,
+  "num_seeds": 5,
+  "observation_mode": "image",
+  "deterministic_mode": "auto",
+  "seed_namespace": "global",
+  "budget": {
+    "train_steps": 20000,
+    "eval_interval_steps": 2000,
+    "eval_episodes": 10
+  },
+  "output_dir": "artifacts",
+  "tags": [
+    "exp1",
+    "toy",
+    "dm_control"
+  ]
+}

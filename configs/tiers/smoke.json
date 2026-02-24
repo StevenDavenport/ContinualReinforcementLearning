@@ -1,0 +1,10 @@
+{
+  "budget": {
+    "train_steps": 20000,
+    "eval_interval_steps": 2000,
+    "eval_episodes": 10
+  },
+  "tags": [
+    "smoke"
+  ]
+}

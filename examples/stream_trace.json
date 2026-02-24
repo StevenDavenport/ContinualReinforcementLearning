@@ -1,0 +1,25 @@
+{
+  "stages": [
+    {
+      "stage_id": "after_task_A",
+      "task_returns": {
+        "task_A": 1.0
+      }
+    },
+    {
+      "stage_id": "after_task_B",
+      "task_returns": {
+        "task_A": 0.8,
+        "task_B": 1.2
+      }
+    },
+    {
+      "stage_id": "after_task_C",
+      "task_returns": {
+        "task_A": 0.6,
+        "task_B": 1.1,
+        "task_C": 1.3
+      }
+    }
+  ]
+}

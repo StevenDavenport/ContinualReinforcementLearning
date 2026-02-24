@@ -1,0 +1,43 @@
+"""Metrics primitives and stream-level analytics."""
+
+from .stream import (
+    MetricsError,
+    StageEvaluation,
+    StreamEvaluation,
+    aggregate_scalar_values,
+    average_return_by_stage,
+    backward_transfer_by_task,
+    bootstrap_confidence_interval,
+    compute_stream_metrics,
+    confidence_interval_normal,
+    evaluation_matrix,
+    forgetting_by_task,
+    forgetting_matrix,
+    forward_transfer_by_task,
+    paired_bootstrap_difference_ci,
+    recovery_time,
+    retention_by_task,
+    retention_matrix,
+    switch_regret,
+)
+
+__all__ = [
+    "MetricsError",
+    "StageEvaluation",
+    "StreamEvaluation",
+    "aggregate_scalar_values",
+    "average_return_by_stage",
+    "backward_transfer_by_task",
+    "bootstrap_confidence_interval",
+    "compute_stream_metrics",
+    "confidence_interval_normal",
+    "evaluation_matrix",
+    "forgetting_by_task",
+    "forgetting_matrix",
+    "forward_transfer_by_task",
+    "paired_bootstrap_difference_ci",
+    "recovery_time",
+    "retention_by_task",
+    "retention_matrix",
+    "switch_regret",
+]
