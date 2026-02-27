@@ -1,7 +1,15 @@
 """Experiment protocol modules."""
 
+from .execution import (
+    ExperimentExecutionResult,
+    MatrixExecutionResult,
+    SingleRunResult,
+    run_experiment,
+    run_experiment1_matrix,
+)
 from .experiment1 import (
     BUDGET_TIERS,
+    DM_CONTROL_BACKENDS,
     EXPERIMENT_ID,
     EvalStagePlan,
     Experiment1Protocol,
@@ -11,10 +19,13 @@ from .experiment1 import (
     build_experiment1_protocol,
     build_experiment1_task_stream,
     build_experiment1_tasks,
+    create_experiment1_dm_control_environment,
     create_experiment1_stub_environment,
     experiment1_reporting_template,
+    get_experiment1_action_space_n,
     get_experiment1_budget,
     get_experiment1_runtime_bound,
+    list_experiment1_roots,
     register_experiment1_plugins,
 )
 from .experiment1_quality import (
@@ -25,21 +36,30 @@ from .experiment1_quality import (
 
 __all__ = [
     "BUDGET_TIERS",
+    "DM_CONTROL_BACKENDS",
     "EXPERIMENT_ID",
     "EXPERIMENT1_QUALITY_ROOTS",
+    "ExperimentExecutionResult",
+    "MatrixExecutionResult",
     "EvalStagePlan",
     "Experiment1Protocol",
     "Experiment1QualityGateResult",
     "Experiment1StubEnvironment",
     "RuntimeBound",
+    "SingleRunResult",
     "build_experiment1_eval_plan",
     "build_experiment1_protocol",
     "build_experiment1_task_stream",
     "build_experiment1_tasks",
+    "create_experiment1_dm_control_environment",
     "create_experiment1_stub_environment",
     "experiment1_reporting_template",
+    "get_experiment1_action_space_n",
     "get_experiment1_budget",
     "get_experiment1_runtime_bound",
+    "list_experiment1_roots",
     "register_experiment1_plugins",
+    "run_experiment",
+    "run_experiment1_matrix",
     "run_experiment1_quality_gate",
 ]

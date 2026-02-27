@@ -1,0 +1,20 @@
+python -m crlbench run-experiment \
+  --experiment experiment_1_forgetting \
+  --track toy \
+  --env-family dm_control \
+  --env-option vision_sequential_quadruped_anchor_escape \
+  --dm-control-backend real \
+  --agent ppo_continuous_baseline \
+  --agents-dir agents \
+  --tier full \
+  --seed 0 \
+  --num-seeds 3 \
+  --eval-horizon 1000 \
+  --eval-episodes 100 \
+  --out-dir artifacts/exp1_quadruped_anchor_escape_full_seed0 \
+  --set device=cuda \
+  --set max_action_dim=32 \
+  --set rollout_size=1024 \
+  --set minibatch_size=256 \
+  --set update_epochs=10 \
+  --set hidden_size=256

@@ -15,3 +15,7 @@ class ConfigurationError(CRLBenchError):
 
 class OrchestrationError(CRLBenchError):
     """Raised when run orchestration preconditions fail."""
+
+
+class AgentIntegrationError(CRLBenchError):
+    """Raised when external agent loading or validation fails."""

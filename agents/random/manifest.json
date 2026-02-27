@@ -1,0 +1,6 @@
+{
+  "name": "random",
+  "version": "0.1.0",
+  "framework": "stdlib",
+  "description": "Random discrete-action baseline agent."
+}

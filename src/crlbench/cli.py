@@ -5,6 +5,7 @@ import json
 from collections.abc import Sequence
 from pathlib import Path
 
+from crlbench.agents import list_agent_names, validate_agent
 from crlbench.config.loader import (
     apply_overrides,
     dump_resolved_config,
@@ -13,7 +14,12 @@ from crlbench.config.loader import (
     resolve_layered_mapping,
 )
 from crlbench.config.schema import ConfigError
-from crlbench.experiments import run_experiment1_quality_gate
+from crlbench.experiments import (
+    EXPERIMENT_ID,
+    run_experiment,
+    run_experiment1_matrix,
+    run_experiment1_quality_gate,
+)
 from crlbench.metrics import StreamEvaluation, compute_stream_metrics
 from crlbench.runtime.plots import generate_canonical_plots
 from crlbench.runtime.publication import export_publication_pack
@@ -51,7 +57,7 @@ def _add_common_config_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def _build_parser() -> argparse.ArgumentParser:
+def _build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915
     parser = argparse.ArgumentParser(prog="crlbench", description="CRL benchmark suite CLI.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -274,6 +280,218 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=("smoke", "dev", "full"),
         help="Experiment 1 budget tier used for synthetic gate generation.",
     )
+
+    list_agents_parser = subparsers.add_parser(
+        "list-agents",
+        help="List drop-in agents discovered under agents directory.",
+    )
+    list_agents_parser.add_argument(
+        "--agents-dir",
+        type=Path,
+        default=Path("agents"),
+        help="Directory containing agent subfolders (default: agents).",
+    )
+
+    validate_agent_parser = subparsers.add_parser(
+        "validate-agent",
+        help="Validate a drop-in agent adapter against AgentAdapter contract smoke checks.",
+    )
+    validate_target = validate_agent_parser.add_mutually_exclusive_group(required=True)
+    validate_target.add_argument(
+        "--agent",
+        help="Agent name discovered in --agents-dir.",
+    )
+    validate_target.add_argument(
+        "--agent-path",
+        type=Path,
+        help="Path to adapter.py or agent directory containing adapter.py.",
+    )
+    validate_agent_parser.add_argument(
+        "--agents-dir",
+        type=Path,
+        default=Path("agents"),
+        help="Directory containing agent subfolders (default: agents).",
+    )
+    validate_agent_parser.add_argument(
+        "--set",
+        action="append",
+        default=[],
+        help="Agent config key/value pair KEY=VALUE (JSON values supported). Repeatable.",
+    )
+
+    run_parser = subparsers.add_parser(
+        "run-experiment",
+        help="Run a benchmark experiment with a drop-in agent.",
+    )
+    run_parser.add_argument(
+        "--experiment",
+        default=EXPERIMENT_ID,
+        choices=(EXPERIMENT_ID,),
+        help="Experiment identifier to execute.",
+    )
+    run_parser.add_argument("--track", required=True, choices=("toy", "robotics"))
+    run_parser.add_argument("--env-family", required=True)
+    run_parser.add_argument("--env-option", required=True)
+    run_target = run_parser.add_mutually_exclusive_group(required=True)
+    run_target.add_argument(
+        "--agent",
+        help="Agent name discovered in --agents-dir.",
+    )
+    run_target.add_argument(
+        "--agent-path",
+        type=Path,
+        help="Path to adapter.py or agent directory containing adapter.py.",
+    )
+    run_parser.add_argument(
+        "--agents-dir",
+        type=Path,
+        default=Path("agents"),
+        help="Directory containing agent subfolders (default: agents).",
+    )
+    run_parser.add_argument(
+        "--tier",
+        default="smoke",
+        choices=("smoke", "dev", "full"),
+        help="Budget tier to run.",
+    )
+    run_parser.add_argument(
+        "--dm-control-backend",
+        default="auto",
+        choices=("auto", "stub", "real"),
+        help="dm_control backend selection for dm_control roots.",
+    )
+    run_parser.add_argument("--seed", type=int, default=0, help="Initial seed.")
+    run_parser.add_argument(
+        "--num-seeds",
+        type=int,
+        default=1,
+        help="Number of consecutive seeds starting at --seed.",
+    )
+    run_parser.add_argument(
+        "--run-name",
+        default=None,
+        help="Optional run name prefix.",
+    )
+    run_parser.add_argument(
+        "--out-dir",
+        type=Path,
+        default=Path("artifacts"),
+        help="Artifact output directory.",
+    )
+    run_parser.add_argument(
+        "--eval-horizon",
+        type=int,
+        default=32,
+        help="Per-episode evaluation horizon.",
+    )
+    run_parser.add_argument(
+        "--eval-episodes",
+        type=int,
+        default=None,
+        help=(
+            "Optional evaluation episode override per task at each stage. "
+            "If unset, tier default is used."
+        ),
+    )
+    run_parser.add_argument(
+        "--train-steps-cap",
+        type=int,
+        default=None,
+        help="Optional cap for train steps per stage (useful for quick test runs).",
+    )
+    run_parser.add_argument(
+        "--eval-episodes-cap",
+        type=int,
+        default=None,
+        help="Optional cap for evaluation episodes (useful for quick test runs).",
+    )
+    run_parser.add_argument(
+        "--set",
+        action="append",
+        default=[],
+        help="Agent config key/value pair KEY=VALUE (JSON values supported). Repeatable.",
+    )
+
+    matrix_parser = subparsers.add_parser(
+        "run-experiment1-matrix",
+        help="Run Experiment 1 across all toy+robotics roots with one agent.",
+    )
+    matrix_target = matrix_parser.add_mutually_exclusive_group(required=True)
+    matrix_target.add_argument(
+        "--agent",
+        help="Agent name discovered in --agents-dir.",
+    )
+    matrix_target.add_argument(
+        "--agent-path",
+        type=Path,
+        help="Path to adapter.py or agent directory containing adapter.py.",
+    )
+    matrix_parser.add_argument(
+        "--agents-dir",
+        type=Path,
+        default=Path("agents"),
+        help="Directory containing agent subfolders (default: agents).",
+    )
+    matrix_parser.add_argument(
+        "--tier",
+        default="smoke",
+        choices=("smoke", "dev", "full"),
+        help="Budget tier to run for each root.",
+    )
+    matrix_parser.add_argument(
+        "--dm-control-backend",
+        default="auto",
+        choices=("auto", "stub", "real"),
+        help="dm_control backend selection for dm_control root in matrix runs.",
+    )
+    matrix_parser.add_argument("--seed", type=int, default=0, help="Initial seed.")
+    matrix_parser.add_argument(
+        "--num-seeds",
+        type=int,
+        default=1,
+        help="Number of consecutive seeds per root.",
+    )
+    matrix_parser.add_argument(
+        "--run-name",
+        default=None,
+        help="Optional run name prefix.",
+    )
+    matrix_parser.add_argument(
+        "--out-dir",
+        type=Path,
+        default=Path("artifacts/exp1_matrix"),
+        help="Artifact output directory.",
+    )
+    matrix_parser.add_argument(
+        "--eval-horizon",
+        type=int,
+        default=32,
+        help="Per-episode evaluation horizon.",
+    )
+    matrix_parser.add_argument(
+        "--eval-episodes",
+        type=int,
+        default=None,
+        help="Optional evaluation episode override per task at each stage.",
+    )
+    matrix_parser.add_argument(
+        "--train-steps-cap",
+        type=int,
+        default=None,
+        help="Optional cap for train steps per stage.",
+    )
+    matrix_parser.add_argument(
+        "--eval-episodes-cap",
+        type=int,
+        default=None,
+        help="Optional cap for evaluation episodes.",
+    )
+    matrix_parser.add_argument(
+        "--set",
+        action="append",
+        default=[],
+        help="Agent config key/value pair KEY=VALUE (JSON values supported). Repeatable.",
+    )
     return parser
 
 
@@ -458,6 +676,84 @@ def main(argv: Sequence[str] | None = None) -> int:  # noqa: PLR0911,PLR0912,PLR
                 f"seed_count={result.seed_count} output_dir={result.output_dir}"
             )
             return 0 if status else 5
+
+        if args.command == "list-agents":
+            names = list_agent_names(args.agents_dir)
+            if not names:
+                print(f"No agents discovered under {args.agents_dir}.")
+                return 0
+            for name in names:
+                print(name)
+            return 0
+
+        if args.command == "validate-agent":
+            errors = validate_agent(
+                agent_name=args.agent,
+                agent_path=args.agent_path,
+                agents_dir=args.agents_dir,
+                config=overrides,
+            )
+            if errors:
+                print("Agent validation FAIL:")
+                for error in errors:
+                    print(f"  - {error}")
+                return 6
+            label = args.agent if args.agent is not None else str(args.agent_path)
+            print(f"Agent validation PASS: {label}")
+            return 0
+
+        if args.command == "run-experiment":
+            run_result = run_experiment(
+                experiment=args.experiment,
+                track=args.track,
+                env_family=args.env_family,
+                env_option=args.env_option,
+                agent_name=args.agent,
+                agent_path=args.agent_path,
+                agents_dir=args.agents_dir,
+                budget_tier=args.tier,
+                output_dir=args.out_dir,
+                run_name=args.run_name,
+                seed=args.seed,
+                num_seeds=args.num_seeds,
+                eval_horizon=args.eval_horizon,
+                eval_episodes_override=args.eval_episodes,
+                train_steps_cap=args.train_steps_cap,
+                eval_episodes_cap=args.eval_episodes_cap,
+                dm_control_backend=args.dm_control_backend,
+                agent_config=overrides,
+            )
+            summary_text = "none"
+            if run_result.summary_json_path is not None:
+                summary_text = str(run_result.summary_json_path)
+            print(
+                f"Run complete: runs={len(run_result.run_results)} "
+                f"summary={summary_text} out_dir={args.out_dir}"
+            )
+            return 0
+
+        if args.command == "run-experiment1-matrix":
+            matrix_result = run_experiment1_matrix(
+                agent_name=args.agent,
+                agent_path=args.agent_path,
+                agents_dir=args.agents_dir,
+                budget_tier=args.tier,
+                output_dir=args.out_dir,
+                run_name=args.run_name,
+                seed=args.seed,
+                num_seeds=args.num_seeds,
+                eval_horizon=args.eval_horizon,
+                eval_episodes_override=args.eval_episodes,
+                train_steps_cap=args.train_steps_cap,
+                eval_episodes_cap=args.eval_episodes_cap,
+                dm_control_backend=args.dm_control_backend,
+                agent_config=overrides,
+            )
+            print(
+                f"Experiment1 matrix complete: roots={len(matrix_result.root_results)} "
+                f"out_dir={args.out_dir}"
+            )
+            return 0
     except ConfigError as exc:
         print(f"Config error: {exc}")
         return 2

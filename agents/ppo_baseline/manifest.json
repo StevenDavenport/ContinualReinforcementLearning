@@ -1,0 +1,6 @@
+{
+  "name": "ppo_baseline",
+  "version": "0.1.0",
+  "framework": "stdlib",
+  "description": "Lightweight PPO-style baseline for benchmark plumbing validation."
+}

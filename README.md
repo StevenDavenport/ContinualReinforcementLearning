@@ -1,94 +1,166 @@
 # CRL Benchmark Suite
 
-Production-grade benchmark infrastructure for continual reinforcement learning (CRL), with a focus on Dreamer-style latent dynamics agents.
+Benchmark platform for continual reinforcement learning (CRL) experiments.
 
-## Goals
-- Standardized CRL protocols across toy and robotics tracks.
-- Reproducible runs with auditable artifacts.
-- Publication-ready metrics, plots, and tables.
-- External-agent compatibility via adapter contracts.
-
-See `ROADMAP.md` for benchmark design and `PLAN.md` for the execution checklist.
-
-## Current Status
-Phase 0-5 core platform work is largely complete:
-- repository structure and tooling,
-- core interface contracts,
-- configuration schema and loader,
-- artifact and CLI foundations,
-- metrics/reporting/publication pack pipeline,
-- CI reliability gates (resume/failure tests, artifact validation, coverage threshold, golden regression).
+The repo is designed for external users to:
+- drop in an agent under `agents/`,
+- run standardized experiments with minimal code changes,
+- get reproducible artifacts, metrics, and publication-ready outputs.
 
 ## Quickstart
+
+### Requirements
+- Python `3.11`
+- Conda (recommended)
+
+### Install
 ```bash
 conda env create -f environment.yml
 conda activate crl_bench
-make check
 ```
 
-Validate a config:
+Optional real dm_control backend:
 ```bash
-python -m crlbench validate-config --config configs/base.json
+python -m pip install -e ".[dev,yaml,dm_control]"
 ```
 
-Resolve and export merged config:
+For `ppo_continuous_baseline` (MLP PPO), install torch:
 ```bash
-python -m crlbench resolve-config --config configs/base.json --out /tmp/resolved.json
+python -m pip install -e ".[dev,yaml,dm_control,torch]"
 ```
 
-Run reproducibility smoke:
+### Verify CLI
+```bash
+python -m crlbench --help
+```
+
+## Run Experiments
+
+### 1) Discover and validate agents
+```bash
+python -m crlbench list-agents --agents-dir agents
+python -m crlbench validate-agent --agent ppo_baseline --agents-dir agents
+```
+
+### 2) Run one Experiment 1 root
+```bash
+python -m crlbench run-experiment \
+  --experiment experiment_1_forgetting \
+  --track toy \
+  --env-family dm_control \
+  --env-option vision_sequential_default \
+  --dm-control-backend auto \
+  --agent ppo_baseline \
+  --agents-dir agents \
+  --tier smoke \
+  --num-seeds 1 \
+  --out-dir artifacts/exp1_single_ppo
+```
+
+### 3) Run all Experiment 1 roots (matrix)
+```bash
+python -m crlbench run-experiment1-matrix \
+  --agent ppo_baseline \
+  --agents-dir agents \
+  --tier smoke \
+  --dm-control-backend auto \
+  --num-seeds 1 \
+  --out-dir artifacts/exp1_matrix_ppo
+```
+
+Backend behavior for dm_control:
+- `--dm-control-backend auto`: use real dm_control if installed, else fallback to stub.
+- `--dm-control-backend real`: require real dm_control; fail fast if not installed.
+- `--dm-control-backend stub`: always use in-repo deterministic stub.
+
+For real dm_control runs, prefer `--agent ppo_continuous_baseline`.
+
+### 4) Validate artifacts
+```bash
+python -m crlbench validate-artifacts --artifacts-dir artifacts/exp1_matrix_ppo
+```
+
+## What “PPO Baseline” vs “Matrix” Means
+
+- `ppo_baseline` is an **agent** (the policy/learner implementation).
+- `run-experiment1-matrix` is a **run mode** (executes the same agent over all 4 Experiment 1 environment roots).
+
+You can run:
+- one root with `run-experiment`
+- all roots with `run-experiment1-matrix`
+
+## Drop In Your Own Agent
+
+Put your agent in:
+```text
+agents/<your_agent_name>/
+  adapter.py
+  manifest.json   # optional
+```
+
+`adapter.py` must expose:
+```python
+def create_agent(config: dict):
+    ...
+```
+
+Returned agent must implement:
+- `reset()`
+- `act(observation, deterministic=False)`
+- `update(batch)`
+- `save(path)`
+
+Then run:
+```bash
+python -m crlbench validate-agent --agent <your_agent_name> --agents-dir agents
+python -m crlbench run-experiment ... --agent <your_agent_name> --agents-dir agents
+```
+
+Tune agent params via overrides:
+```bash
+python -m crlbench run-experiment ... \
+  --set learning_rate=0.005 \
+  --set clip_epsilon=0.15
+```
+
+## Experiment 1 Coverage
+
+Current implemented roots:
+- `toy / dm_control / vision_sequential_default`
+- `toy / dm_control / vision_sequential_quadruped_recovery`
+- `toy / dm_control / vision_sequential_quadruped_anchor_escape`
+- `toy / procgen / vision_sequential_alternative`
+- `robotics / metaworld / manipulation_sequential_default`
+- `robotics / maniskill / manipulation_sequential_alternative`
+
+Experiment details:
+- `docs/EXPERIMENT_1.md`
+
+## Useful Commands
+
+Repro smoke:
 ```bash
 python -m crlbench repro-smoke --config configs/base.json --max-tasks 3
 ```
 
-Validate generated run artifacts:
-```bash
-python -m crlbench validate-artifacts --artifacts-dir artifacts
-```
-
-Run optional heavy-environment smoke matrix (nightly/manual CI equivalent):
-```bash
-python -m pytest -m heavy_env -rs
-```
-
-Run Experiment 1 quality gate (parity + 5-seed reproducibility + plots/tables):
+Experiment 1 quality gate (parity + reproducibility + tables/plots):
 ```bash
 python -m crlbench run-experiment1-quality-gate --out-dir /tmp/exp1_quality --seed-count 5
 ```
 
-Compute metrics from a stream trace:
-```bash
-python -m crlbench compute-stream-metrics \
-  --trace examples/stream_trace.json \
-  --metadata run_id=demo_run \
-  --metadata experiment=exp1 \
-  --metadata track=toy \
-  --metadata env_family=dm_control \
-  --metadata env_option=vision \
-  --out /tmp/run_metrics_summary.json
-```
-
-Generate canonical plot specs:
-```bash
-python -m crlbench generate-canonical-plots \
-  --summary /tmp/run_metrics_summary.json \
-  --out-dir /tmp/canonical_plots
-```
-
-Export one-command publication pack:
+Publication pack:
 ```bash
 python -m crlbench export-publication-pack \
   --run-dir artifacts/<run_id_1> \
   --run-dir artifacts/<run_id_2> \
   --out-dir /tmp/publication_pack \
-  --method agent=dreamer \
-  --method backbone=latent_dynamics
+  --method agent=your_agent
 ```
 
-See `docs/INSTALL.md` for install options, `docs/CONTRIBUTING.md` for development workflow, and
-`docs/PUBLICATION_PACK.md` for paper-ready bundle export details.
+## Docs
 
-Experiment 1 protocol details (sequence templates, budget tiers, runtime bounds):
+- `docs/AGENT_INTEGRATION.md`
 - `docs/EXPERIMENT_1.md`
-- base configs in `configs/experiment_1/`
-- tier overlays in `configs/tiers/`
+- `docs/PUBLICATION_PACK.md`
+- `ROADMAP.md`
+- `PLAN.md`

@@ -459,3 +459,86 @@ def test_run_experiment1_quality_gate_command(tmp_path: Path) -> None:
     assert rc == 0
     assert (out_dir / "summary" / "experiment1_metrics_summary.json").exists()
     assert (out_dir / "summary" / "experiment1_metrics_summary.csv").exists()
+
+
+def test_list_agents_command(capsys: CaptureFixture[str]) -> None:
+    rc = main(["list-agents", "--agents-dir", "agents"])
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert "random" in captured.out
+
+
+def test_validate_agent_command() -> None:
+    rc = main(["validate-agent", "--agent", "random", "--agents-dir", "agents"])
+    assert rc == 0
+
+
+def test_run_experiment_command(tmp_path: Path) -> None:
+    out_dir = tmp_path / "run_experiment"
+    rc = main(
+        [
+            "run-experiment",
+            "--experiment",
+            "experiment_1_forgetting",
+            "--track",
+            "toy",
+            "--env-family",
+            "dm_control",
+            "--env-option",
+            "vision_sequential_default",
+            "--agent",
+            "random",
+            "--agents-dir",
+            "agents",
+            "--tier",
+            "smoke",
+            "--dm-control-backend",
+            "stub",
+            "--num-seeds",
+            "1",
+            "--out-dir",
+            str(out_dir),
+            "--train-steps-cap",
+            "10",
+            "--eval-episodes-cap",
+            "2",
+            "--eval-horizon",
+            "8",
+        ]
+    )
+    assert rc == 0
+    summaries = list((out_dir / "summaries").glob("*.json"))
+    assert summaries
+
+
+def test_run_experiment1_matrix_command(tmp_path: Path) -> None:
+    out_dir = tmp_path / "run_experiment_matrix"
+    rc = main(
+        [
+            "run-experiment1-matrix",
+            "--agent",
+            "random",
+            "--agents-dir",
+            "agents",
+            "--tier",
+            "smoke",
+            "--dm-control-backend",
+            "stub",
+            "--num-seeds",
+            "1",
+            "--out-dir",
+            str(out_dir),
+            "--train-steps-cap",
+            "6",
+            "--eval-episodes-cap",
+            "1",
+            "--eval-horizon",
+            "4",
+        ]
+    )
+    assert rc == 0
+    root_summaries = list(out_dir.rglob("*_metrics_summary.json"))
+    assert root_summaries
+
+    validate_rc = main(["validate-artifacts", "--artifacts-dir", str(out_dir)])
+    assert validate_rc == 0

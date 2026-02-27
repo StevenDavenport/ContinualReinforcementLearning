@@ -107,6 +107,11 @@ def validate_artifacts_dir(artifacts_dir: Path) -> dict[str, list[str]]:
     results: dict[str, list[str]] = {}
     if not artifacts_dir.exists():
         return {"__root__": [f"artifacts directory does not exist: {artifacts_dir}"]}
-    for run_dir in sorted(path for path in artifacts_dir.iterdir() if path.is_dir()):
-        results[run_dir.name] = validate_run_artifacts(run_dir)
+    for run_dir in sorted(
+        path
+        for path in artifacts_dir.rglob("*")
+        if path.is_dir() and (path / "manifest.json").exists()
+    ):
+        key = str(run_dir.relative_to(artifacts_dir))
+        results[key] = validate_run_artifacts(run_dir)
     return results

@@ -1,0 +1,6 @@
+{
+  "name": "ppo_continuous_baseline",
+  "version": "0.1.0",
+  "framework": "pytorch",
+  "description": "Continuous-action PPO baseline with MLP actor/critic, GAE, and minibatch policy updates."
+}
