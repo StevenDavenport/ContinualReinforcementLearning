@@ -135,10 +135,13 @@ class DmControlExperiment1Environment(EnvironmentAdapter):
             task_kwargs={"random": int(seed)},
         )
 
-    def _to_pixel_grid(self) -> list[list[list[int]]]:
+    def _to_pixel_grid(self, *, frame_size: int | None = None) -> list[list[list[int]]]:
+        size = self._frame_size if frame_size is None else int(frame_size)
+        if size <= 0:
+            size = self._frame_size
         frame = self._env.physics.render(
-            height=self._frame_size,
-            width=self._frame_size,
+            height=size,
+            width=size,
             camera_id=0,
         )
         tolist = getattr(frame, "tolist", None)
@@ -147,6 +150,10 @@ class DmControlExperiment1Environment(EnvironmentAdapter):
             if isinstance(rendered, list):
                 return cast(list[list[list[int]]], rendered)
         return [[[0, 0, 0]]]
+
+    def render_pixels(self, *, frame_size: int | None = None) -> list[list[list[int]]]:
+        """Render RGB pixels for qualitative playback at optional custom resolution."""
+        return self._to_pixel_grid(frame_size=frame_size)
 
     def _proprio(self, observation: Mapping[str, Any]) -> list[float]:
         out: list[float] = []
