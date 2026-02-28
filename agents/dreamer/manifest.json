@@ -1,0 +1,7 @@
+{
+  "name": "dreamer",
+  "version": "0.1.0",
+  "framework": "pytorch",
+  "description": "DreamerV3-style Torch agent scaffold for CRL benchmark integration."
+}
+
