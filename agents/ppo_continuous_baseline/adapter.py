@@ -529,6 +529,62 @@ class PPOContinuousBaselineAgent:
         }
         path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
+    def load(self, path: Path) -> None:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, Mapping):
+            raise ValueError(f"Checkpoint payload must be object, got {type(payload).__name__}.")
+
+        actor_state_raw = payload.get("actor_state_dict")
+        critic_state_raw = payload.get("critic_state_dict")
+        log_std_raw = payload.get("log_std")
+        if not isinstance(actor_state_raw, Mapping):
+            raise ValueError("Checkpoint missing 'actor_state_dict' mapping.")
+        if not isinstance(critic_state_raw, Mapping):
+            raise ValueError("Checkpoint missing 'critic_state_dict' mapping.")
+        if not isinstance(log_std_raw, Sequence) or isinstance(
+            log_std_raw, str | bytes | bytearray
+        ):
+            raise ValueError("Checkpoint missing 'log_std' sequence.")
+
+        actor_state: dict[str, Any] = {}
+        for key, value in actor_state_raw.items():
+            if not isinstance(key, str):
+                raise ValueError("Actor state keys must be strings.")
+            actor_state[key] = self._torch.tensor(
+                value,
+                dtype=self._torch.float32,
+                device=self.device,
+            )
+
+        critic_state: dict[str, Any] = {}
+        for key, value in critic_state_raw.items():
+            if not isinstance(key, str):
+                raise ValueError("Critic state keys must be strings.")
+            critic_state[key] = self._torch.tensor(
+                value,
+                dtype=self._torch.float32,
+                device=self.device,
+            )
+
+        log_std_list = [_safe_float(item, 0.0) for item in log_std_raw]
+        if len(log_std_list) != self._max_action_dim:
+            raise ValueError(
+                "log_std length mismatch: "
+                f"expected {self._max_action_dim}, got {len(log_std_list)}."
+            )
+        log_std_tensor = self._torch.tensor(
+            log_std_list,
+            dtype=self._torch.float32,
+            device=self.device,
+        )
+
+        self._actor.load_state_dict(actor_state)
+        self._critic.load_state_dict(critic_state)
+        with self._torch.no_grad():
+            self._log_std.copy_(log_std_tensor)
+
+        self.reset()
+
 
 def _import_torch() -> Any:
     try:

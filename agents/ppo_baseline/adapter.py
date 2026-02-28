@@ -228,6 +228,55 @@ class PPOBaselineAgent:
         }
         path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
+    def load(self, path: Path) -> None:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, Mapping):
+            raise ValueError(f"Checkpoint payload must be object, got {type(payload).__name__}.")
+
+        policy_weights_raw = payload.get("policy_weights")
+        policy_bias_raw = payload.get("policy_bias")
+        value_weights_raw = payload.get("value_weights")
+        value_bias_raw = payload.get("value_bias")
+        default_action_space_raw = payload.get(
+            "default_action_space_n",
+            self._default_action_space_n,
+        )
+
+        if not isinstance(policy_weights_raw, Sequence) or isinstance(
+            policy_weights_raw, str | bytes | bytearray
+        ):
+            raise ValueError("Checkpoint missing 'policy_weights' sequence.")
+        if not isinstance(policy_bias_raw, Sequence) or isinstance(
+            policy_bias_raw, str | bytes | bytearray
+        ):
+            raise ValueError("Checkpoint missing 'policy_bias' sequence.")
+        if not isinstance(value_weights_raw, Sequence) or isinstance(
+            value_weights_raw, str | bytes | bytearray
+        ):
+            raise ValueError("Checkpoint missing 'value_weights' sequence.")
+        if not isinstance(value_bias_raw, int | float):
+            raise ValueError("Checkpoint missing numeric 'value_bias'.")
+        if not isinstance(default_action_space_raw, int) or default_action_space_raw <= 1:
+            raise ValueError("Checkpoint has invalid 'default_action_space_n'.")
+
+        policy_weights: list[list[float]] = []
+        for row in policy_weights_raw:
+            if not isinstance(row, Sequence) or isinstance(row, str | bytes | bytearray):
+                raise ValueError("policy_weights rows must be numeric sequences.")
+            policy_weights.append([_clamp(float(value), -10.0, 10.0) for value in row])
+
+        policy_bias = [_clamp(float(value), -10.0, 10.0) for value in policy_bias_raw]
+        value_weights = [_clamp(float(value), -10.0, 10.0) for value in value_weights_raw]
+        if len(policy_weights) != len(policy_bias):
+            raise ValueError("policy_weights/policy_bias length mismatch in checkpoint.")
+
+        self._default_action_space_n = default_action_space_raw
+        self._policy_weights = policy_weights
+        self._policy_bias = policy_bias
+        self._value_weights = value_weights
+        self._value_bias = _clamp(float(value_bias_raw), -10.0, 10.0)
+        self.reset()
+
 
 def create_agent(config: Mapping[str, Any]) -> PPOBaselineAgent:
     seed_raw = config.get("seed", 0)
