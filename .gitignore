@@ -26,3 +26,10 @@ artifacts/*
 # IDE
 .idea/
 .vscode/
+
+# Local Dreamer development artifacts
+diff.md
+agents/dreamer/dreamerv3.pdf
+agents/dreamer/LIFECYCLE_PARITY.md
+agents/dreamer/PARITY_CLOSED_REPORT.md
+agents/dreamer/origonal_code/
