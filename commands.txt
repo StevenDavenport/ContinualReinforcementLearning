@@ -18,3 +18,16 @@ python -m crlbench run-experiment \
   --set minibatch_size=256 \
   --set update_epochs=10 \
   --set hidden_size=256
+
+python scripts/dreamer_tester.py \
+  --steps 1000000 \
+  --env-family dm_control \
+  --env-option vision_sequential_quadruped_anchor_escape \
+  --task-id quadruped_run \
+  --dm-control-backend real \
+  --seed 0 \
+  --device auto \
+  --eval-every 50000 \
+  --eval-episodes 10 \
+  --eval-horizon 1000 \
+  --run-name dreamer_run_1m
