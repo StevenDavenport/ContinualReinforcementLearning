@@ -27,7 +27,40 @@ python scripts/dreamer_tester.py \
   --dm-control-backend real \
   --seed 0 \
   --device auto \
+  --compute-dtype auto \
+  --batch-size 8 \
+  --batch-length 32 \
+  --imag-last 8 \
   --eval-every 50000 \
   --eval-episodes 10 \
   --eval-horizon 1000 \
   --run-name dreamer_run_1m
+
+# Dreamer small dev run: prioritize visible learning and stable execution over paper-scale parity
+
+python scripts/dreamer_tester.py \
+  --steps 1000000 \
+  --env-family dm_control \
+  --env-option vision_sequential_quadruped_anchor_escape \
+  --task-id quadruped_run \
+  --dm-control-backend real \
+  --seed 0 \
+  --device auto \
+  --compute-dtype auto \
+  --batch-size 8 \
+  --batch-length 32 \
+  --imag-last 8 \
+  --model-dim 256 \
+  --embed-dim 512 \
+  --deter-dim 256 \
+  --stoch-dim 16 \
+  --classes 16 \
+  --blocks 4 \
+  --train-ratio 16 \
+  --warmup-steps 128 \
+  --imagine-horizon 8 \
+  --eval-every 50000 \
+  --eval-episodes 10 \
+  --eval-horizon 1000 \
+  --run-name dreamer_small_1m
+

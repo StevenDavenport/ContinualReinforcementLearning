@@ -20,6 +20,7 @@ from dreamer.losses import (
     world_model_loss,
 )
 from dreamer.networks.actor import Actor, ActorConfig
+from dreamer.networks.distributions import twohot_cross_entropy, twohot_mean
 from dreamer.optim import LaProp, LaPropConfig
 
 
@@ -148,3 +149,16 @@ def test_actor_distribution_smoke() -> None:
     assert cont_terms["action"].shape == (3, 4)
     assert cont_terms["log_prob"].shape == (3,)
     assert torch.isfinite(cont_terms["entropy"]).all()
+
+
+def test_twohot_low_precision_smoke() -> None:
+    logits = torch.randn(3, 7, 255, dtype=torch.bfloat16)
+    target = torch.randn(3, 7, dtype=torch.bfloat16)
+
+    loss = twohot_cross_entropy(logits, target)
+    mean = twohot_mean(logits)
+
+    assert loss.dtype == torch.float32
+    assert mean.dtype == torch.float32
+    assert torch.isfinite(loss).all()
+    assert torch.isfinite(mean).all()

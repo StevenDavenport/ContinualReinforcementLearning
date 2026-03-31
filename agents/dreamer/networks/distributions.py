@@ -256,6 +256,30 @@ def symexp_twohot_bins(
             f"Expected log_low < log_high, got log_low={log_low}, log_high={log_high}."
         )
     torch_mod = _import_torch()
+
+    # Mirror the original DreamerV3 bin construction for the default symmetric
+    # support so the zero-centered two-hot support matches the JAX reference.
+    if abs(float(log_low) + float(log_high)) < 1e-6:
+        if bins % 2 == 1:
+            half = torch_mod.linspace(
+                float(log_low),
+                0.0,
+                ((bins - 1) // 2) + 1,
+                device=device,
+                dtype=dtype,
+            )
+            half = symexp(half)
+            return torch_mod.cat([half, -half[:-1].flip(dims=(0,))], dim=0)
+        half = torch_mod.linspace(
+            float(log_low),
+            0.0,
+            bins // 2,
+            device=device,
+            dtype=dtype,
+        )
+        half = symexp(half)
+        return torch_mod.cat([half, -half.flip(dims=(0,))], dim=0)
+
     grid = torch_mod.linspace(
         float(log_low),
         float(log_high),
@@ -319,15 +343,16 @@ def twohot_encode(
 
     _require_float_tensor("value", value)
     torch_mod = _import_torch()
+    work_value = value.to(dtype=torch_mod.float32)
     resolved_support = _resolve_support(
         support=support,
         bins=bins,
         log_low=log_low,
         log_high=log_high,
         device=value.device,
-        dtype=value.dtype,
+        dtype=torch_mod.float32,
     )
-    flat = value.reshape(-1).clamp(min=resolved_support[0], max=resolved_support[-1])
+    flat = work_value.reshape(-1).clamp(min=resolved_support[0], max=resolved_support[-1])
     upper = torch_mod.searchsorted(resolved_support, flat, right=False).clamp(
         1,
         resolved_support.shape[0] - 1,
@@ -342,7 +367,7 @@ def twohot_encode(
 
     enc = torch_mod.zeros(
         (flat.shape[0], int(resolved_support.shape[0])),
-        dtype=value.dtype,
+        dtype=work_value.dtype,
         device=value.device,
     )
     arange = torch_mod.arange(flat.shape[0], device=value.device)
@@ -366,20 +391,21 @@ def twohot_mean(
     if logits.shape[-1] < 2:
         raise ValueError("twohot_mean expects at least 2 bins.")
     torch_mod = _import_torch()
+    logits_float = logits.to(dtype=torch_mod.float32)
     resolved_support = _resolve_support(
         support=support,
         bins=int(logits.shape[-1]),
         log_low=log_low,
         log_high=log_high,
         device=logits.device,
-        dtype=logits.dtype,
+        dtype=torch_mod.float32,
     )
     if int(resolved_support.shape[0]) != int(logits.shape[-1]):
         raise ValueError(
             "support size must match logits class dimension, got "
             f"{int(resolved_support.shape[0])} vs {int(logits.shape[-1])}."
         )
-    probs = torch_mod.softmax(logits, dim=-1)
+    probs = torch_mod.softmax(logits_float, dim=-1)
     weighted = probs * resolved_support
 
     neg_terms = weighted[..., resolved_support < 0].flip(dims=(-1,))
@@ -407,13 +433,15 @@ def twohot_cross_entropy(  # noqa: PLR0913
             "target shape must match logits without class dim, got "
             f"{tuple(target.shape)} vs {tuple(logits.shape[:-1])}."
         )
+    torch_mod = _import_torch()
+    logits_float = logits.to(dtype=torch_mod.float32)
+    target_float = target.to(dtype=torch_mod.float32)
     twohot = twohot_encode(
-        target,
+        target_float,
         support=support,
         bins=bins,
         log_low=log_low,
         log_high=log_high,
     )
-    torch_mod = _import_torch()
-    log_probs = torch_mod.log_softmax(logits, dim=-1)
+    log_probs = torch_mod.log_softmax(logits_float, dim=-1)
     return -(twohot * log_probs).sum(dim=-1)

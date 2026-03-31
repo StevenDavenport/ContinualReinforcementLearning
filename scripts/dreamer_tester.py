@@ -40,6 +40,13 @@ def _coerce_device(device: str) -> str:
     return "cuda" if torch.cuda.is_available() else "cpu"
 
 
+def _coerce_compute_dtype(device: str, compute_dtype: str) -> str:
+    normalized = str(compute_dtype).strip().lower()
+    if normalized != "auto":
+        return normalized
+    return "bfloat16" if device == "cuda" else "float32"
+
+
 def _is_numeric(value: object) -> bool:
     return isinstance(value, int | float) and not isinstance(value, bool)
 
@@ -228,12 +235,19 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--eval-episodes", type=int, default=10)
     parser.add_argument("--eval-horizon", type=int, default=1_000)
     parser.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda", "mps"])
-    parser.add_argument("--compute-dtype", default="float32")
-    parser.add_argument("--batch-size", type=int, default=16)
-    parser.add_argument("--batch-length", type=int, default=64)
+    parser.add_argument("--compute-dtype", default="auto", choices=["auto", "float32", "bfloat16", "float16"])
+    parser.add_argument("--batch-size", type=int, default=8)
+    parser.add_argument("--batch-length", type=int, default=32)
     parser.add_argument("--train-ratio", type=float, default=32.0)
     parser.add_argument("--warmup-steps", type=int, default=256)
     parser.add_argument("--imagine-horizon", type=int, default=15)
+    parser.add_argument("--imag-last", type=int, default=8)
+    parser.add_argument("--model-dim", type=int, default=512)
+    parser.add_argument("--embed-dim", type=int, default=1024)
+    parser.add_argument("--deter-dim", type=int, default=512)
+    parser.add_argument("--stoch-dim", type=int, default=32)
+    parser.add_argument("--classes", type=int, default=32)
+    parser.add_argument("--blocks", type=int, default=8)
     parser.add_argument("--vector-input-dim", type=int, default=256)
     parser.add_argument("--vector-output-dim", type=int, default=256)
     return parser
@@ -253,6 +267,8 @@ def main() -> int:  # noqa: PLR0912,PLR0915
         raise SystemExit("--eval-horizon must be > 0.")
     if args.seed < 0:
         raise SystemExit("--seed must be >= 0.")
+    if args.imag_last < 0:
+        raise SystemExit("--imag-last must be >= 0.")
 
     run_name = (
         f"{args.run_name}_{args.env_family}_{args.env_option}_{args.task_id}_"
@@ -280,10 +296,11 @@ def main() -> int:  # noqa: PLR0912,PLR0915
         raise SystemExit(f"Invalid action_dim inferred from environment: {action_dim}")
 
     device = _coerce_device(args.device)
+    compute_dtype = _coerce_compute_dtype(device, args.compute_dtype)
     agent_config: dict[str, Any] = {
         "seed": int(args.seed),
         "device": device,
-        "compute_dtype": str(args.compute_dtype),
+        "compute_dtype": compute_dtype,
         "action_space": action_space,
         "action_dim": int(action_dim),
         "batch_size": int(args.batch_size),
@@ -291,6 +308,13 @@ def main() -> int:  # noqa: PLR0912,PLR0915
         "train_ratio": float(args.train_ratio),
         "warmup_steps": int(args.warmup_steps),
         "imagine_horizon": int(args.imagine_horizon),
+        "imag_last": int(args.imag_last),
+        "model_dim": int(args.model_dim),
+        "embed_dim": int(args.embed_dim),
+        "deter_dim": int(args.deter_dim),
+        "stoch_dim": int(args.stoch_dim),
+        "classes": int(args.classes),
+        "blocks": int(args.blocks),
         "vector_input_dim": int(args.vector_input_dim),
         "vector_output_dim": int(args.vector_output_dim),
         "image_size": int(image_size),
@@ -333,6 +357,14 @@ def main() -> int:  # noqa: PLR0912,PLR0915
             "seed": args.seed,
             "steps": args.steps,
             "device": device,
+            "compute_dtype": compute_dtype,
+            "imag_last": int(args.imag_last),
+            "model_dim": int(args.model_dim),
+            "embed_dim": int(args.embed_dim),
+            "deter_dim": int(args.deter_dim),
+            "stoch_dim": int(args.stoch_dim),
+            "classes": int(args.classes),
+            "blocks": int(args.blocks),
             "action_space": action_space,
             "action_dim": action_dim,
             "image_size": image_size,
@@ -342,7 +374,10 @@ def main() -> int:  # noqa: PLR0912,PLR0915
     print(
         "[start] "
         f"agent={descriptor.name} task={args.task_id} steps={args.steps} "
-        f"device={device} action_space={action_space} action_dim={action_dim} "
+        f"device={device} dtype={compute_dtype} imag_last={int(args.imag_last)} "
+        f"model=md{int(args.model_dim)}/ed{int(args.embed_dim)}/dd{int(args.deter_dim)}/sd{int(args.stoch_dim)} "
+        f"cls={int(args.classes)} blk={int(args.blocks)} "
+        f"action_space={action_space} action_dim={action_dim} "
         f"image={image_size}x{image_size}x{image_channels} run_dir={run_dir}",
         flush=True,
     )
@@ -452,6 +487,14 @@ def main() -> int:  # noqa: PLR0912,PLR0915
         "seed": args.seed,
         "steps": args.steps,
         "device": device,
+        "compute_dtype": compute_dtype,
+        "imag_last": int(args.imag_last),
+        "model_dim": int(args.model_dim),
+        "embed_dim": int(args.embed_dim),
+        "deter_dim": int(args.deter_dim),
+        "stoch_dim": int(args.stoch_dim),
+        "classes": int(args.classes),
+        "blocks": int(args.blocks),
         "action_space": action_space,
         "action_dim": action_dim,
         "image_size": image_size,
